@@ -8,14 +8,21 @@ options(scipen = 999)
 train <- fread("train.csv", data.table = FALSE)
 test <- fread("test.csv", data.table = FALSE)
 
-train %>% filter(target == 1) %>% sample_n(5)
-
 #Tokenizing
 
 max_words <- 15000
-maxlen <- 64
 
-full <- rbind(train %>% select(question_text), test %>% select(question_text))
-texts <- full$question_text
-result <- tokenizers::tokenize_ngrams(texts, n = 2)
-data <- pad_sequences(result)
+all_questions <- rbind(train %>% select(question_text), test %>% select(question_text))
+question_texts <- all_questions$question_text
+result <- tokenizers::tokenize_ngrams(question_texts, n = 1)
+
+embeddings <- readLines('wiki-news-300d-1M.vec')
+embeddings_index = new.env(hash = TRUE, parent = emptyenv())
+embeddings <- embeddings[2:length(embeddings)]
+
+for (i in 1:length(embeddings)){
+  embedding <- embeddings[[i]]
+  embedding <- strsplit(embedding, " ")[[1]]
+  word <- embedding[[1]]
+  embeddings_index[[word]] = as.double(embedding[-1])
+}
