@@ -40,12 +40,14 @@ for (word in names(word_index)){
     embedding_vector = embeddings_index[[word]]
     if (!is.null(embedding_vector))
       word_vectors[index+1,] <- embedding_vector
+      # count not found words!
   }
 }
 
 labels = train$target
 indices = sample(1:nrow(data))
 training_indices = indices[1:nrow(data)]
+
 x_train = data[training_indices,]
 y_train = labels[training_indices]
 
@@ -57,9 +59,9 @@ input <- layer_input(
 
 model <- keras_model()
 model %>%
-    layer_embedding(input_dim = max_words, output_dim = 300, name = "embedding")
-    layer_lstm(units = maxlen,dropout = 0.25, recurrent_dropout = 0.25, return_sequences = FALSE, name = "lstm")
-    layer_dense(units = 128, activation = "relu", name = "dense")
+    layer_embedding(input_dim = max_words, output_dim = 300, name = "embedding") %>%
+    layer_lstm(units = maxlen,dropout = 0.25, recurrent_dropout = 0.25, return_sequences = FALSE, name = "lstm") %>%
+    layer_dense(units = 128, activation = "relu", name = "dense") %>%
     layer_dense(units = 1, activation = "sigmoid", name = "predictions")
 
 get_layer(model, name = "embedding") %>% 
@@ -75,9 +77,8 @@ model %>% compile(
 history <- model %>% fit(
   x_train,
   y_train,
-  batch_size = 2048,
-  epochs = 35,
-  view_metrics = FALSE,
+  batch_size = 128,
+  epochs = 20,
   verbose = 0
 )
 
