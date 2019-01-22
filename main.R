@@ -5,6 +5,9 @@ library(dplyr)
 library(kerasR)
 
 options(scipen = 999)
+set.seed(1113137)
+
+Sys.time()
 
 train <- fread('../input/train.csv', data.table = FALSE)
 test <- fread('../input/test.csv', data.table = FALSE)
@@ -20,7 +23,7 @@ sequences <- texts_to_sequences(tokenizer, texts)
 word_index <- tokenizer$word_index
 
 data = pad_sequences(sequences, maxlen = maxlen)
-set.seed(1337)
+
 embeddings <- readLines('../input/embeddings/wiki-news-300d-1M/wiki-news-300d-1M.vec')
 embeddings_index = new.env(hash = TRUE, parent = emptyenv())
 embeddings <- embeddings[2:length(embeddings)]
@@ -35,7 +38,7 @@ for (i in 1:length(embeddings)){
 word_vectors = array(0, c(max_words, 300))
 
 for (word in names(word_index)){
-  index <- embeddings_index[[word]]
+  index <- word_index[[word]]
   if (index < max_words){
     embedding_vector = embeddings_index[[word]]
     if (!is.null(embedding_vector))
@@ -57,12 +60,15 @@ input <- layer_input(
   name = "input"
 )
 
-model <- keras_model()
-model %>%
+predictions <- input %>% 
     layer_embedding(input_dim = max_words, output_dim = 300, name = "embedding") %>%
     layer_lstm(units = maxlen,dropout = 0.25, recurrent_dropout = 0.25, return_sequences = FALSE, name = "lstm") %>%
     layer_dense(units = 128, activation = "relu", name = "dense") %>%
     layer_dense(units = 1, activation = "sigmoid", name = "predictions")
+
+Sys.time()
+
+model <- keras_model(input, predictions)
 
 get_layer(model, name = "embedding") %>% 
   set_weights(list(word_vectors)) %>% 
@@ -74,6 +80,9 @@ model %>% compile(
   metrics = "binary_accuracy"
 )
 
+print(model)
+Sys.time()
+
 history <- model %>% fit(
   x_train,
   y_train,
@@ -82,5 +91,7 @@ history <- model %>% fit(
   verbose = 0
 )
 
-print(model)
 print(history)
+plot(history)
+
+Sys.time()
