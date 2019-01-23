@@ -2,7 +2,6 @@ library(data.table)
 library(tidytext)
 library(magrittr)
 library(dplyr)
-library(fifer)
 library(keras)
 library(readr)
 
@@ -26,7 +25,6 @@ get_data <- function(input, num_words, max_len, is_train) {
 }
 
 train <- fread('../input/train.csv', data.table = FALSE)
-#train <- stratified(train, "target", 0.2)
 test <- fread('../input/test.csv', data.table = FALSE)
 
 data = get_data(train, max_words, maxlen, TRUE)
@@ -36,13 +34,11 @@ embeddings <- readLines('../input/embeddings/wiki-news-300d-1M/wiki-news-300d-1M
 embeddings_index = new.env(hash = TRUE, parent = emptyenv())
 embeddings <- embeddings[2:length(embeddings)]
 
-pb <- txtProgressBar(min = 0, max = length(embeddings), style = 3)
 for (i in 1:length(embeddings)){
   embedding <- embeddings[[i]]
   values <- strsplit(embedding, " ")[[1]]
   word <- values[[1]]
   embeddings_index[[word]] = as.double(values[-1])
-  setTxtProgressBar(pb, i)
 }
 
 word_vectors = array(0, c(max_words, 300))
@@ -65,10 +61,9 @@ cat("Not found:", not_found)
 
 labels = train$target
 indices = sample(1:nrow(data))
-training_indices = indices[1:nrow(data)]
 
-x_train = data[training_indices,]
-y_train = labels[training_indices]
+x_train = data[indices,]
+y_train = labels[indices]
 
 input <- layer_input(
   shape = list(NULL),
@@ -78,7 +73,7 @@ input <- layer_input(
 
 predictions <- input %>% 
     layer_embedding(input_dim = max_words, output_dim = 300, name = "embedding") %>%
-    layer_lstm(units = maxlen,dropout = 0.25, recurrent_dropout = 0.25, return_sequences = FALSE, name = "lstm") %>%
+    layer_lstm(units = 64, dropout = 0.25, recurrent_dropout = 0.25, return_sequences = FALSE, name = "lstm") %>%
     layer_dense(units = 128, activation = "relu", name = "dense") %>%
     layer_dense(units = 1, activation = "sigmoid", name = "predictions")
 
@@ -105,7 +100,7 @@ history <- model %>% fit(
   batch_size = 1024,
   epochs = 30,
   validation_split=0.1,
-  verbose = 1
+  verbose = 2
 )
 
 print(history)
@@ -116,7 +111,8 @@ Sys.time()
 predictions <- predict(model, test_data)
 predictions <- ifelse(predictions >= 0.5, 1, 0)
 
-submission = data.frame(cbind(test$qid, predictions))
-names(submission) = c("qid", "prediction")
+result = data.frame(cbind(test$qid, predictions))
+names(result) = c("qid", "prediction")
+write_csv(result, "submission.csv")
 
 Sys.time()
